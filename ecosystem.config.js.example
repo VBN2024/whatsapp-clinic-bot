@@ -1,0 +1,34 @@
+// PM2 ecosystem config — copy to ecosystem.config.js and fill in the values.
+// DO NOT commit ecosystem.config.js (contains secrets).
+// ecosystem.config.js is listed in .gitignore.
+
+module.exports = {
+  apps: [
+    {
+      name: 'whatsapp-clinic-bot',
+      script: 'src/server.js',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      env: {
+        NODE_ENV: 'production',
+        PORT: 3000,
+
+        // WhatsApp / Meta Cloud API
+        WHATSAPP_VERIFY_TOKEN: '',
+        WHATSAPP_ACCESS_TOKEN: '',
+        WHATSAPP_PHONE_NUMBER_ID: '',
+
+        // Supabase — Project Settings > API
+        SUPABASE_URL: '',
+        SUPABASE_SERVICE_ROLE_KEY: '',
+
+        // Calendly booking links (Etapa 2+)
+        LINK_PARTICULAR_ONLINE: '',
+        LINK_PARTICULAR_PRESENCIAL: '',
+        LINK_ALICE_ONLINE: '',
+        LINK_ALICE_PRESENCIAL: '',
+      },
+    },
+  ],
+};
