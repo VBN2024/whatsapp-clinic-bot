@@ -23,6 +23,9 @@ module.exports = {
         SUPABASE_URL: '',
         SUPABASE_SERVICE_ROLE_KEY: '',
 
+        // Evolution API — instance API key (used to validate webhook calls)
+        EVOLUTION_WEBHOOK_SECRET: '',
+
         // Calendly booking links (Etapa 2+)
         LINK_PARTICULAR_ONLINE: '',
         LINK_PARTICULAR_PRESENCIAL: '',
