@@ -13,6 +13,7 @@ const fastify = require('fastify')({
   },
 });
 
+fastify.register(require('./routes/health'));
 fastify.register(require('./routes/webhook'));
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
