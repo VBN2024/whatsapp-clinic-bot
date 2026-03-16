@@ -1,11 +1,6 @@
 'use strict';
 
-const { createClient } = require('@supabase/supabase-js');
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const supabase = require('../utils/supabaseClient');
 
 /**
  * Creates or retrieves a contact by phone number (thread-safe UPSERT).
