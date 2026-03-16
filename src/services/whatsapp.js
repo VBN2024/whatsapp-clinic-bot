@@ -1,6 +1,6 @@
 'use strict';
 
-const GRAPH_API_VERSION = 'v18.0';
+const GRAPH_API_VERSION = 'v19.0';
 
 /**
  * Sends a plain text message via Meta WhatsApp Cloud API.
