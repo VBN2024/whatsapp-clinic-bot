@@ -6,9 +6,9 @@ Metadados do Documento
 
 Campo	Valor
 Projeto	Automação de triagem e agendamento clínico
-Versão do Documento	1.0
-Data	2024
-Status	Etapa 1 Congelada
+Versão do Documento	2.0
+Data	2026-03-18
+Status	Etapa 2 em andamento
 Fonte de Verdade	Sim (este documento)
 
 
@@ -30,12 +30,12 @@ Ele apenas executa triagem estruturada e envio de links de agendamento.
 2. Escopo da V1
 A primeira versão tem escopo deliberadamente limitado.
 O sistema faz
-	∙	✅ Valida webhook da Meta Cloud API
+	∙	✅ Valida webhook do 360dialog (formato Meta Cloud API)
 	∙	✅ Extrai campos mínimos da mensagem
 	∙	✅ Garante idempotência via external_message_id
 	∙	✅ Cria ou obtém contato (thread-safe com UPSERT)
 	∙	✅ Grava mensagem em message_log (crua, sem processamento)
-	∙	✅ Retorna 200 OK para Meta
+	∙	✅ Retorna 200 OK para 360dialog
 	∙	✅ Logging estruturado
 O sistema não faz
 	∙	❌ Processamento de áudio
@@ -55,7 +55,7 @@ Fluxo simplificado (Etapa 1):
 
 Paciente envia mensagem
          ↓
-    Webhook da Meta
+    Webhook do 360dialog
          ↓
 Validar token
          ↓
@@ -330,7 +330,7 @@ Campos principais:
 	∙	idx_appointments_match_confidence
 
 10A. Contrato de Mensagem (Formato Interno)
-Para evitar dependência direta do formato da API do WhatsApp (Meta Cloud API ou Evolution API), toda mensagem recebida deve ser convertida para um formato interno normalizado antes de ser processada.
+Para evitar dependência direta do formato da API do WhatsApp (360dialog / Meta Cloud API), toda mensagem recebida deve ser convertida para um formato interno normalizado antes de ser processada.
 Estrutura do Objeto de Mensagem Normalizada
 
 {
@@ -458,11 +458,11 @@ Esses dados permitem medir:
 13. Critério de Sucesso da V1
 A V1 é considerada funcional quando o fluxo abaixo funciona de forma consistente:
 	1.	✅ Paciente inicia conversa
-	2.	✅ Sistema recebe e valida webhook
+	2.	✅ Sistema recebe e valida webhook do 360dialog
 	3.	✅ Sistema extrai dados e garante idempotência
 	4.	✅ Sistema cria contato de forma thread-safe
 	5.	✅ Sistema grava mensagem em message_log
-	6.	✅ Sistema retorna 200 OK para Meta
+	6.	✅ Sistema retorna 200 OK para o 360dialog
 Sem intervenção manual.
 
 14. Limitações Conhecidas da V1
@@ -501,7 +501,16 @@ Agendamento:
 Agenda:
 	∙	Google Calendar
 Mensageria:
-	∙	WhatsApp Business API (Meta Cloud API)
+	∙	WhatsApp Business (numero da clinica em coexistencia: WAB App + 360dialog)
+	∙	Provider BSP: 360dialog (waba.360dialog.io)
+	∙	Inbound: webhook 360dialog -> POST /webhook (payload identico ao formato Meta Cloud API)
+	∙	Outbound: POST waba.360dialog.io/v1/messages com header D360-API-KEY
+
+Integrações permanentemente descartadas:
+	∙	❌ Evolution API — fora da arquitetura
+	∙	❌ Make / Zapier — fora da arquitetura
+	∙	❌ Onboarding self-serve direto Meta Cloud API para este numero — fora da arquitetura
+
 Nenhuma outra tecnologia deve ser introduzida sem validação.
 Componentes do Backend
 Input Parser:
@@ -529,7 +538,8 @@ Se houver divergência entre código e este documento, o documento deve ser atua
 
 
 Versão	Data	Status	Alterações
-1.0	2024	Etapa 1 Congelada	Documentação inicial com Etapa 1 congelada
+1.0	2024	Congelada	Documentação inicial — provider: Meta Cloud API self-serve
+2.0	2026-03-18	Ativa	Mudanca de provider para 360dialog (BSP); coexistencia com WAB App confirmada; Evolution e Make removidos definitivamente; env vars atualizadas
 
 
 19. Próximas Etapas (Roadmap)
@@ -557,7 +567,24 @@ Etapa 5: Melhorias e Expansão
 Para dúvidas sobre a arquitetura ou implementação, consulte este documento como fonte única de verdade.
 Qualquer alteração deve ser documentada aqui antes de ser implementada no código.
 
-Documento Aprovado para Etapa 1
-Status: CONGELADO
-Data: 2024
-Versão: 1.0​​​​​​​​​​​​​​​​
+Variaveis de Ambiente Obrigatorias (v2.0)
+
+	∙	PORT=3000
+	∙	WEBHOOK_VERIFY_TOKEN= token registrado no 360dialog Hub
+	∙	D360_API_KEY= API key gerada no 360dialog Hub
+	∙	SUPABASE_URL=
+	∙	SUPABASE_SERVICE_ROLE_KEY=
+	∙	LINK_PARTICULAR_ONLINE=
+	∙	LINK_PARTICULAR_PRESENCIAL=
+	∙	LINK_ALICE_ONLINE=
+	∙	LINK_ALICE_PRESENCIAL=
+
+Removidas (nao usar):
+	∙	WHATSAPP_ACCESS_TOKEN (era token Meta self-serve — substituido por D360_API_KEY)
+	∙	WHATSAPP_PHONE_NUMBER_ID (nao necessario com 360dialog — o API key ja e vinculado ao numero)
+	∙	WHATSAPP_BUSINESS_ACCOUNT_ID (nao necessario com 360dialog)
+
+Documento Aprovado para Etapa 2
+Status: ATIVO
+Data: 2026-03-18
+Versao: 2.0

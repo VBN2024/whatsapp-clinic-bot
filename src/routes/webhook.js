@@ -17,12 +17,13 @@ async function webhookRoutes(fastify) {
     const token     = request.query['hub.verify_token'];
     const challenge = request.query['hub.challenge'];
 
-    if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN) {
-      fastify.log.info('Webhook verified by Meta');
+    const verifyToken = process.env.WEBHOOK_VERIFY_TOKEN || process.env.WHATSAPP_VERIFY_TOKEN;
+    if (mode === 'subscribe' && token === verifyToken) {
+      fastify.log.info('Webhook verified by 360dialog');
       return reply.code(200).send(challenge);
     }
 
-    fastify.log.warn({ mode, token }, 'Webhook verification failed — check WHATSAPP_VERIFY_TOKEN');
+    fastify.log.warn({ mode, token }, 'Webhook verification failed — check WEBHOOK_VERIFY_TOKEN');
     return reply.code(403).send('Forbidden');
   });
 
@@ -31,7 +32,7 @@ async function webhookRoutes(fastify) {
     // Always acknowledge immediately — Meta will retry if we don't answer fast
     reply.code(200).send({ status: 'ok' });
 
-    fastify.log.info('Webhook received');
+    fastify.log.info('Webhook received from 360dialog');
 
     // ── 1. Parse ─────────────────────────────────────────────────────────────
     const parsed = parseInboundMessage(request.body);

@@ -1,9 +1,13 @@
 'use strict';
 
-const GRAPH_API_VERSION = 'v19.0';
+// 360dialog Cloud API — BSP for this clinic number.
+// Auth: D360-API-KEY header (not Bearer token).
+// The API key is already bound to the number in the 360dialog Hub;
+// no phone_number_id is needed in the URL.
+const DIALOG360_BASE_URL = 'https://waba.360dialog.io/v1/messages';
 
 /**
- * Sends a plain text message via Meta WhatsApp Cloud API.
+ * Sends a plain text message via 360dialog Cloud API.
  *
  * Throws if the API returns a non-2xx status or if the required
  * environment variables are missing.
@@ -13,21 +17,17 @@ const GRAPH_API_VERSION = 'v19.0';
  * @returns {Promise<string|null>} - The outbound message ID assigned by Meta, or null
  */
 async function sendTextMessage(phone, text) {
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const accessToken   = process.env.WHATSAPP_ACCESS_TOKEN;
+  const apiKey = process.env.D360_API_KEY;
 
-  if (!phoneNumberId || !accessToken ||
-      phoneNumberId === 'NOT_USED_YET' || accessToken === 'NOT_USED_YET') {
-    throw new Error('WhatsApp Cloud API credentials not configured (WHATSAPP_PHONE_NUMBER_ID / WHATSAPP_ACCESS_TOKEN)');
+  if (!apiKey || apiKey === 'NOT_USED_YET') {
+    throw new Error('360dialog credentials not configured (D360_API_KEY)');
   }
 
-  const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/messages`;
-
-  const response = await fetch(url, {
+  const response = await fetch(DIALOG360_BASE_URL, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type':  'application/json',
+      'D360-API-KEY': apiKey,
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       messaging_product: 'whatsapp',
@@ -40,7 +40,7 @@ async function sendTextMessage(phone, text) {
   const json = await response.json();
 
   if (!response.ok) {
-    throw new Error(`Meta API error ${response.status}: ${JSON.stringify(json)}`);
+    throw new Error(`360dialog API error ${response.status}: ${JSON.stringify(json)}`);
   }
 
   return json?.messages?.[0]?.id ?? null;
