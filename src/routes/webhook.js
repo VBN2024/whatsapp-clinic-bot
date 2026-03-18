@@ -151,14 +151,22 @@ async function webhookRoutes(fastify) {
           break;
 
         case 'SKIP':
-          fastify.log.info({ conversationId: conversation.id }, 'Bot silent (SKIP)');
+          fastify.log.info(
+            { conversationId: conversation.id, state: conversation.state, handoff_human: conversation.handoff_human },
+            'Bot silent (SKIP) — human in control or state requires no response'
+          );
           break;
 
         default:
           fastify.log.warn({ action }, 'Unknown action — skipping');
       }
     } catch (err) {
-      fastify.log.error({ err, phone, action }, 'Error executing action');
+      console.error('[webhook] Error executing action:', err.message);
+      console.error(err.stack);
+      fastify.log.error(
+        { err: { message: err.message, stack: err.stack }, phone, action },
+        'Error executing action'
+      );
     }
   });
 }
@@ -166,6 +174,7 @@ async function webhookRoutes(fastify) {
 // ─── Action executors ─────────────────────────────────────────────────────────
 
 async function execSendMenu({ phone, contact, conversation, fastify }, menu, nextState) {
+  console.log(`[sendMenu] Sending message to user ${phone} — nextState: ${nextState}`);
   const outboundId = await sendInteractiveButtons(phone, menu.body, menu.buttons);
   fastify.log.info({ phone, outboundId, nextState }, 'Interactive menu sent');
 
@@ -185,6 +194,7 @@ async function execSendMenu({ phone, contact, conversation, fastify }, menu, nex
 }
 
 async function execSendLink({ phone, contact, conversation, fastify }, linkEnvVar) {
+  console.log(`[sendLink] Sending message to user ${phone} — link: ${linkEnvVar}`);
   const text = bookingLinkText(linkEnvVar);
   const outboundId = await sendTextMessage(phone, text);
   fastify.log.info({ phone, outboundId, linkEnvVar }, 'Booking link sent');
@@ -201,6 +211,7 @@ async function execSendLink({ phone, contact, conversation, fastify }, linkEnvVa
 }
 
 async function execHandoff({ phone, contact, conversation, fastify }) {
+  console.log(`[sendHandoff] Sending message to user ${phone}`);
   const outboundId = await sendTextMessage(phone, HANDOFF_TEXT);
   fastify.log.info({ phone, outboundId }, 'Conversation handed off to human');
 

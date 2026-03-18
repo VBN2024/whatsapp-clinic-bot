@@ -67,6 +67,11 @@ function decide(conversation, message) {
       return 'SEND_MAIN_MENU';
 
     case 'waiting_booking':
+      // Patient sends text after receiving the link (e.g. returns later, says "oi").
+      // Show the main menu so they can re-enter the flow.
+      if (message.type === 'text') return 'SEND_MAIN_MENU';
+      return 'SKIP';
+
     case 'waiting_human':
     case 'booked':
       return 'SKIP';
