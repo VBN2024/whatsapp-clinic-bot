@@ -29,7 +29,11 @@ STATUS DA ETAPA 2:
   - [x] persistir inbound em message_log
   - [x] enviar resposta outbound via 360dialog
   - [x] registrar outbound em message_log
-  - [ ] triage completa com state machine (proximo passo)
+  - [x] state machine completa (menu_root → choosing_modality → waiting_booking / waiting_human)
+  - [x] menu interativo com botoes (BTN_PARTICULAR, BTN_ALICE, BTN_OUTROS)
+  - [x] fluxo particular: online + presencial com links Calendly
+  - [x] fluxo Alice: online + presencial com links Calendly
+  - [x] handoff humano com persistencia
 
 Este documento define escopo, arquitetura, comportamento e regras operacionais da V1.
 Qualquer alteracao funcional deve atualizar este documento antes da implementacao.

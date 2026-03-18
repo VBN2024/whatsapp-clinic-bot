@@ -6,35 +6,22 @@
 // no phone_number_id is needed in the URL.
 const DIALOG360_BASE_URL = 'https://waba.360dialog.io/v1/messages';
 
-/**
- * Sends a plain text message via 360dialog Cloud API.
- *
- * Throws if the API returns a non-2xx status or if the required
- * environment variables are missing.
- *
- * @param {string} phone - Recipient phone in E.164 without leading '+' (e.g. "5511999999999")
- * @param {string} text  - Message body
- * @returns {Promise<string|null>} - The outbound message ID assigned by Meta, or null
- */
-async function sendTextMessage(phone, text) {
-  const apiKey = process.env.D360_API_KEY;
-
-  if (!apiKey || apiKey === 'NOT_USED_YET') {
+function getApiKey() {
+  const key = process.env.D360_API_KEY;
+  if (!key || key === 'NOT_USED_YET') {
     throw new Error('360dialog credentials not configured (D360_API_KEY)');
   }
+  return key;
+}
 
+async function post360(body) {
   const response = await fetch(DIALOG360_BASE_URL, {
     method: 'POST',
     headers: {
-      'D360-API-KEY': apiKey,
-      'Content-Type': 'application/json',
+      'D360-API-KEY':  getApiKey(),
+      'Content-Type':  'application/json',
     },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to:   phone,
-      type: 'text',
-      text: { body: text },
-    }),
+    body: JSON.stringify(body),
   });
 
   const json = await response.json();
@@ -46,4 +33,48 @@ async function sendTextMessage(phone, text) {
   return json?.messages?.[0]?.id ?? null;
 }
 
-module.exports = { sendTextMessage };
+/**
+ * Sends a plain text message via 360dialog.
+ *
+ * @param {string} phone - Recipient in E.164 without leading '+' (e.g. "5511999999999")
+ * @param {string} text  - Message body
+ * @returns {Promise<string|null>} Outbound message ID assigned by Meta, or null
+ */
+async function sendTextMessage(phone, text) {
+  return post360({
+    messaging_product: 'whatsapp',
+    to:   phone,
+    type: 'text',
+    text: { body: text },
+  });
+}
+
+/**
+ * Sends an interactive button message via 360dialog.
+ *
+ * WhatsApp limits: max 3 buttons, title ≤ 20 chars, id ≤ 256 chars.
+ *
+ * @param {string} phone     - Recipient in E.164 without leading '+'
+ * @param {string} bodyText  - Message body shown above the buttons
+ * @param {{ id: string, title: string }[]} buttons - 1–3 buttons
+ * @returns {Promise<string|null>} Outbound message ID, or null
+ */
+async function sendInteractiveButtons(phone, bodyText, buttons) {
+  return post360({
+    messaging_product: 'whatsapp',
+    to:   phone,
+    type: 'interactive',
+    interactive: {
+      type: 'button',
+      body: { text: bodyText },
+      action: {
+        buttons: buttons.map((b) => ({
+          type:  'reply',
+          reply: { id: b.id, title: b.title },
+        })),
+      },
+    },
+  });
+}
+
+module.exports = { sendTextMessage, sendInteractiveButtons };
