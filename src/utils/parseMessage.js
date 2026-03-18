@@ -1,7 +1,9 @@
 'use strict';
 
 /**
- * Extracts the minimum required fields from a Meta Cloud API webhook body.
+ * Extracts the minimum required fields from a 360dialog / Meta Cloud API webhook body.
+ * 360dialog forwards inbound events in the standard Meta Cloud API envelope format,
+ * so this parser works unchanged for both providers.
  *
  * Returns null if the body does not contain a valid WhatsApp message event.
  *
@@ -45,7 +47,7 @@ function parseInboundMessage(body) {
 }
 
 /**
- * Maps Meta Cloud API message types to the internal vocabulary defined in the spec.
+ * Maps message types (Meta Cloud API envelope) to the internal vocabulary defined in the spec.
  */
 function normalizeType(rawType) {
   switch (rawType) {

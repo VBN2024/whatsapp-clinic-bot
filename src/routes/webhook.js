@@ -11,7 +11,7 @@ const { evaluate }                                        = require('../services
  */
 async function webhookRoutes(fastify) {
 
-  // ─── GET /webhook — Meta hub.challenge verification ───────────────────────
+  // ─── GET /webhook — hub.challenge verification (used by 360dialog on webhook registration) ──
   fastify.get('/webhook', (request, reply) => {
     const mode      = request.query['hub.mode'];
     const token     = request.query['hub.verify_token'];

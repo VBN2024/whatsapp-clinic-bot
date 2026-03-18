@@ -12,8 +12,27 @@ Status	Etapa 2 em andamento
 Fonte de Verdade	Sim (este documento)
 
 
+NOTA HISTORICA — ETAPA 1 (CONGELADA)
+O marco "Etapa 1 — Congelamento WhatsApp Bot" (Meta Cloud API self-serve, sem 360dialog) esta
+permanentemente congelado como registro historico. Ele NAO representa a arquitetura atual.
+NAO usar como referencia de implementacao.
+
+ARQUITETURA ATUAL (Etapa 2 em andamento):
+  WhatsApp Business App (coexistencia ativa)
+  + 360dialog (BSP)
+  -> Node.js / Fastify backend
+  -> Supabase
+  -> Calendly
+
+STATUS DA ETAPA 2:
+  - [x] receber webhook inbound do 360dialog
+  - [x] persistir inbound em message_log
+  - [x] enviar resposta outbound via 360dialog
+  - [x] registrar outbound em message_log
+  - [ ] triage completa com state machine (proximo passo)
+
 Este documento define escopo, arquitetura, comportamento e regras operacionais da V1.
-Qualquer alteração funcional deve atualizar este documento antes da implementação.
+Qualquer alteracao funcional deve atualizar este documento antes da implementacao.
 
 1. Objetivo do Projeto
 Implementar um sistema automatizado no WhatsApp Business capaz de:
