@@ -59,7 +59,7 @@ function normalize(text) {
 function classify(text) {
   const n = normalize(text);
   for (const { intent, keywords } of INTENT_RULES) {
-    if (keywords.some((k) => n.includes(normalize(k)))) {
+    if (keywords.some((k) => new RegExp(`\\b${normalize(k)}\\b`).test(n))) {
       return intent;
     }
   }
