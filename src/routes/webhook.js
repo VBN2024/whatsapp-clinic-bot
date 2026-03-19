@@ -38,6 +38,17 @@ const HANDOFF_TEXT =
   'Certo! Vou encaminhar sua mensagem para a equipe da clínica. ' +
   'Em breve alguém do time retorna para ajudar.';
 
+const FALLBACK_TEXT =
+  'Posso te ajudar com agendamento. Escolha uma das opções abaixo para continuar.';
+
+const OFFER_HUMAN_TEXT =
+  'Não consegui entender bem. Se preferir, posso te direcionar para ' +
+  'atendimento da equipe — ou escolha uma opção abaixo:';
+
+const PRICE_TEXT =
+  'Os valores das consultas variam de acordo com a modalidade e podem ' +
+  'ser confirmados diretamente no agendamento.\n\nEscolha como deseja continuar:';
+
 function bookingLinkText(linkEnvVar) {
   const link = process.env[linkEnvVar] || '[link não configurado]';
   return (
@@ -45,6 +56,20 @@ function bookingLinkText(linkEnvVar) {
     `${link}\n\n` +
     'Se precisar de ajuda com o agendamento, é só avisar.'
   );
+}
+
+// ─── Consecutive-error counter (in-memory, resets on process restart) ─────────
+// Key: conversationId  Value: number of consecutive unrecognised messages
+const errorCounters = new Map();
+
+function incrementError(conversationId) {
+  const n = (errorCounters.get(conversationId) || 0) + 1;
+  errorCounters.set(conversationId, n);
+  return n;
+}
+
+function resetError(conversationId) {
+  errorCounters.delete(conversationId);
 }
 
 // ─── Route plugin ─────────────────────────────────────────────────────────────
@@ -119,34 +144,59 @@ async function webhookRoutes(fastify) {
       switch (action) {
 
         case 'SEND_MAIN_MENU':
+          resetError(conversation.id);
           await execSendMenu(ctx, MENUS.main, 'menu_root');
           break;
 
+        case 'SEND_FALLBACK_MENU': {
+          const errorCount = incrementError(conversation.id);
+          if (errorCount >= 2) {
+            // Second consecutive unrecognised message — offer human assistance
+            resetError(conversation.id);
+            await execSendMenuWithText(ctx, OFFER_HUMAN_TEXT, MENUS.main, 'menu_root');
+          } else {
+            await execSendMenuWithText(ctx, FALLBACK_TEXT, MENUS.main, 'menu_root');
+          }
+          break;
+        }
+
+        case 'SEND_PRICE_INFO':
+          resetError(conversation.id);
+          await execSendMenuWithText(ctx, PRICE_TEXT, MENUS.main, 'menu_root');
+          break;
+
         case 'SEND_MODALITY_PARTICULAR':
+          resetError(conversation.id);
           await execSendMenu(ctx, MENUS.modalityParticular, 'choosing_modality');
           break;
 
         case 'SEND_MODALITY_ALICE':
+          resetError(conversation.id);
           await execSendMenu(ctx, MENUS.modalityAlice, 'choosing_modality');
           break;
 
         case 'SEND_LINK_PARTICULAR_ONLINE':
+          resetError(conversation.id);
           await execSendLink(ctx, 'LINK_PARTICULAR_ONLINE');
           break;
 
         case 'SEND_LINK_PARTICULAR_PRESENCIAL':
+          resetError(conversation.id);
           await execSendLink(ctx, 'LINK_PARTICULAR_PRESENCIAL');
           break;
 
         case 'SEND_LINK_ALICE_ONLINE':
+          resetError(conversation.id);
           await execSendLink(ctx, 'LINK_ALICE_ONLINE');
           break;
 
         case 'SEND_LINK_ALICE_PRESENCIAL':
+          resetError(conversation.id);
           await execSendLink(ctx, 'LINK_ALICE_PRESENCIAL');
           break;
 
         case 'HANDOFF':
+          resetError(conversation.id);
           await execHandoff(ctx);
           break;
 
@@ -186,6 +236,36 @@ async function execSendMenu({ phone, contact, conversation, fastify }, menu, nex
   if (outboundId) {
     await logMessage(
       outboundId, contact.id, conversation.id,
+      'interactive',
+      { type: 'interactive', body: menu.body, buttons: menu.buttons },
+      'outbound'
+    );
+  }
+}
+
+/**
+ * Sends a plain-text message followed by an interactive menu.
+ * Used for fallback, price info, and offer-human flows.
+ */
+async function execSendMenuWithText({ phone, contact, conversation, fastify }, textBody, menu, nextState) {
+  console.log(`[sendMenuWithText] Sending text + menu to user ${phone} — nextState: ${nextState}`);
+
+  const textOutboundId = await sendTextMessage(phone, textBody);
+  if (textOutboundId) {
+    await logMessage(textOutboundId, contact.id, conversation.id, 'text', { body: textBody }, 'outbound');
+  }
+
+  const menuOutboundId = await sendInteractiveButtons(phone, menu.body, menu.buttons);
+  fastify.log.info({ phone, menuOutboundId, nextState }, 'Text + menu sent');
+
+  await updateConversation(conversation.id, {
+    state:               nextState,
+    last_bot_message_at: new Date().toISOString(),
+  });
+
+  if (menuOutboundId) {
+    await logMessage(
+      menuOutboundId, contact.id, conversation.id,
       'interactive',
       { type: 'interactive', body: menu.body, buttons: menu.buttons },
       'outbound'

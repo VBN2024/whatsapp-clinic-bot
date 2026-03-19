@@ -7,7 +7,9 @@
  * The caller (webhook route) is responsible for executing the returned action.
  *
  * Action constants:
- *   SEND_MAIN_MENU               — send initial interactive button menu; stays in menu_root
+ *   SEND_MAIN_MENU               — send initial interactive button menu; → menu_root
+ *   SEND_FALLBACK_MENU           — unknown text input; caller tracks consecutive error count
+ *   SEND_PRICE_INFO              — price intent; send price text + main menu buttons
  *   SEND_MODALITY_PARTICULAR     — ask online / presencial (particular path); → choosing_modality
  *   SEND_MODALITY_ALICE          — ask online / presencial (Alice path);      → choosing_modality
  *   SEND_LINK_PARTICULAR_ONLINE  — send LINK_PARTICULAR_ONLINE;               → waiting_booking
@@ -18,20 +20,7 @@
  *   SKIP                         — bot stays silent; no state change
  */
 
-const HUMAN_KEYWORDS = ['atendente', 'humano', 'secretaria', 'ajuda'];
-
-function normalize(text) {
-  return (text || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim();
-}
-
-function hasHumanKeyword(text) {
-  const n = normalize(text);
-  return HUMAN_KEYWORDS.some((k) => n.includes(k));
-}
+const { classify } = require('./classifier');
 
 /**
  * @param {{ state: string, handoff_human: boolean }} conversation
@@ -45,41 +34,59 @@ function decide(conversation, message) {
   // Media messages — V1 does not process them → handoff
   if (message.type === 'media') return 'HANDOFF';
 
-  // Explicit human keyword in any active state → handoff
-  if (message.text && hasHumanKeyword(message.text)) return 'HANDOFF';
+  const btn           = (message.buttonId || '').toUpperCase();
+  const isButtonEvent = message.type === 'interactive' || message.type === 'button';
 
-  const btn = (message.buttonId || '').toUpperCase();
+  // ── Button events: route by button ID within current state ────────────────
+  if (isButtonEvent && btn) {
+    switch (conversation.state) {
+      case 'menu_root':
+        if (btn === 'BTN_PARTICULAR') return 'SEND_MODALITY_PARTICULAR';
+        if (btn === 'BTN_ALICE')      return 'SEND_MODALITY_ALICE';
+        if (btn === 'BTN_OUTROS')     return 'HANDOFF';
+        return 'SEND_MAIN_MENU';
 
-  switch (conversation.state) {
-    case 'menu_root':
-      if (btn === 'BTN_PARTICULAR') return 'SEND_MODALITY_PARTICULAR';
-      if (btn === 'BTN_ALICE')      return 'SEND_MODALITY_ALICE';
-      if (btn === 'BTN_OUTROS')     return 'HANDOFF';
-      // Any free text or unknown event → show main menu
-      return 'SEND_MAIN_MENU';
+      case 'choosing_modality':
+        if (btn === 'BTN_ONLINE')           return 'SEND_LINK_PARTICULAR_ONLINE';
+        if (btn === 'BTN_PRESENCIAL')       return 'SEND_LINK_PARTICULAR_PRESENCIAL';
+        if (btn === 'BTN_ALICE_ONLINE')     return 'SEND_LINK_ALICE_ONLINE';
+        if (btn === 'BTN_ALICE_PRESENCIAL') return 'SEND_LINK_ALICE_PRESENCIAL';
+        return 'SEND_MAIN_MENU';
 
-    case 'choosing_modality':
-      if (btn === 'BTN_ONLINE')           return 'SEND_LINK_PARTICULAR_ONLINE';
-      if (btn === 'BTN_PRESENCIAL')       return 'SEND_LINK_PARTICULAR_PRESENCIAL';
-      if (btn === 'BTN_ALICE_ONLINE')     return 'SEND_LINK_ALICE_ONLINE';
-      if (btn === 'BTN_ALICE_PRESENCIAL') return 'SEND_LINK_ALICE_PRESENCIAL';
-      // Out-of-flow input → reset to main menu
-      return 'SEND_MAIN_MENU';
+      case 'waiting_booking':
+      case 'waiting_human':
+      case 'booked':
+        return 'SKIP';
 
-    case 'waiting_booking':
-      // Patient sends text after receiving the link (e.g. returns later, says "oi").
-      // Show the main menu so they can re-enter the flow.
-      if (message.type === 'text') return 'SEND_MAIN_MENU';
-      return 'SKIP';
-
-    case 'waiting_human':
-    case 'booked':
-      return 'SKIP';
-
-    default:
-      // 'closed' or unknown — upsertConversation already created a fresh menu_root row
-      return 'SEND_MAIN_MENU';
+      default:
+        return 'SEND_MAIN_MENU';
+    }
   }
+
+  // ── Free text: classify intent and route ──────────────────────────────────
+  if (message.type === 'text' && message.text) {
+    // States where the bot stays silent regardless of what the user types
+    if (conversation.state === 'waiting_human' || conversation.state === 'booked') {
+      return 'SKIP';
+    }
+
+    const intent = classify(message.text);
+
+    switch (intent) {
+      case 'human':      return 'HANDOFF';
+      case 'price':      return 'SEND_PRICE_INFO';
+      case 'alice':      return 'SEND_MODALITY_ALICE';
+      case 'particular': return 'SEND_MODALITY_PARTICULAR';
+      case 'greeting':
+      case 'scheduling': return 'SEND_MAIN_MENU';
+      default:
+        // Unknown intent — fallback; caller tracks consecutive unknowns
+        return 'SEND_FALLBACK_MENU';
+    }
+  }
+
+  // No text, no button (e.g. status delivery events slipping through)
+  return 'SKIP';
 }
 
 module.exports = { decide };
