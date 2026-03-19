@@ -259,30 +259,26 @@ async function execSendMenu({ phone, contact, conversation, fastify }, menu, nex
 }
 
 /**
- * Sends a plain-text message followed by an interactive menu.
+ * Sends an interactive menu with a custom text body.
  * Used for fallback, price info, and offer-human flows.
+ * Single message avoids silent drop of rapid sequential sends via 360dialog.
  */
 async function execSendMenuWithText({ phone, contact, conversation, fastify }, textBody, menu, nextState) {
-  console.log(`[sendMenuWithText] Sending text + menu to user ${phone} — nextState: ${nextState}`);
+  console.log(`[sendMenuWithText] Sending menu to user ${phone} — nextState: ${nextState}`);
 
-  const textOutboundId = await sendTextMessage(phone, textBody);
-  if (textOutboundId) {
-    await logMessage(textOutboundId, contact.id, conversation.id, 'text', { body: textBody }, 'outbound');
-  }
-
-  const menuOutboundId = await sendInteractiveButtons(phone, menu.body, menu.buttons);
-  fastify.log.info({ phone, menuOutboundId, nextState }, 'Text + menu sent');
+  const outboundId = await sendInteractiveButtons(phone, textBody, menu.buttons);
+  fastify.log.info({ phone, outboundId, nextState }, 'Menu with text sent');
 
   await updateConversation(conversation.id, {
     state:               nextState,
     last_bot_message_at: new Date().toISOString(),
   });
 
-  if (menuOutboundId) {
+  if (outboundId) {
     await logMessage(
-      menuOutboundId, contact.id, conversation.id,
+      outboundId, contact.id, conversation.id,
       'interactive',
-      { type: 'interactive', body: menu.body, buttons: menu.buttons },
+      { type: 'interactive', body: textBody, buttons: menu.buttons },
       'outbound'
     );
   }
