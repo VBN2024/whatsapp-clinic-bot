@@ -79,6 +79,12 @@ function resetError(conversationId) {
  */
 async function webhookRoutes(fastify) {
 
+  // ─── POST / — catch-all for 360dialog status callbacks sent to root path ─────
+  fastify.post('/', async (request, reply) => {
+    fastify.log.info({ body: request.body }, 'POST / received (360dialog status callback)');
+    return reply.code(200).send({ status: 'ok' });
+  });
+
   // ─── GET /webhook — hub.challenge verification (used by 360dialog on webhook registration) ──
   fastify.get('/webhook', (request, reply) => {
     const mode      = request.query['hub.mode'];
@@ -105,10 +111,19 @@ async function webhookRoutes(fastify) {
     // ── 1. Parse ─────────────────────────────────────────────────────────────
     const parsed = parseInboundMessage(request.body);
     if (!parsed) {
-      fastify.log.info(
-        { event: request.body?.entry?.[0]?.changes?.[0]?.value?.statuses },
-        'No inbound message in event; skipping'
-      );
+      const statuses = request.body?.entry?.[0]?.changes?.[0]?.value?.statuses;
+      if (statuses?.length) {
+        const s = statuses[0];
+        if (s.status === 'failed') {
+          console.error(
+            `[delivery] FAILED to ${s.recipient_id} — code ${s.errors?.[0]?.code}: ${s.errors?.[0]?.message}`
+          );
+        } else {
+          fastify.log.info({ status: s.status, recipient: s.recipient_id }, 'Delivery status update');
+        }
+      } else {
+        fastify.log.info('No inbound message in event; skipping');
+      }
       return;
     }
 

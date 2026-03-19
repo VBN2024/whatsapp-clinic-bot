@@ -27,10 +27,13 @@ async function post360(body) {
   const json = await response.json();
 
   if (!response.ok) {
+    console.error('[360dialog] API error', response.status, JSON.stringify(json));
     throw new Error(`360dialog API error ${response.status}: ${JSON.stringify(json)}`);
   }
 
-  return json?.messages?.[0]?.id ?? null;
+  const msgId = json?.messages?.[0]?.id ?? null;
+  console.log('[360dialog] Message accepted, wamid:', msgId, '| to:', body.to, '| type:', body.type);
+  return msgId;
 }
 
 /**
