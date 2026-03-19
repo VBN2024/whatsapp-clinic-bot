@@ -4,7 +4,8 @@
 // Auth: D360-API-KEY header (not Bearer token).
 // The API key is already bound to the number in the 360dialog Hub;
 // no phone_number_id is needed in the URL.
-const DIALOG360_BASE_URL = 'https://waba.360dialog.io/v1/messages';
+// NOTE: number is "Cloud API hosted by Meta" — requires the v2 endpoint.
+const DIALOG360_BASE_URL = 'https://waba-v2.360dialog.io/messages';
 
 function getApiKey() {
   const key = process.env.D360_API_KEY;
