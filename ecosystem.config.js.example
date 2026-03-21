@@ -14,12 +14,15 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 3000,
 
-        // 360dialog — API key from hub.360dialog.com
-        // The key is bound to the clinic number; no phone_number_id required.
-        D360_API_KEY: '',
+        // 360dialog — API key de wabamanagement.360dialog.io → canal → Details
+        // A chave já está vinculada ao número; não é necessário phone_number_id.
+        WHATSAPP_API_KEY_360D: '',
 
-        // Webhook verify token registered in the 360dialog Hub webhook config
-        WEBHOOK_VERIFY_TOKEN: '',
+        // Número da clínica em E.164 sem '+' (ex.: 5511994295900)
+        WHATSAPP_CHANNEL_NUMBER: '',
+
+        // Token de verificação registrado no webhook do 360dialog
+        WHATSAPP_WEBHOOK_VERIFY_TOKEN: '',
 
         // Supabase — Project Settings > API
         SUPABASE_URL: '',

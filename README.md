@@ -2,12 +2,13 @@
 
 WhatsApp triage and scheduling bot for clinic.
 
-## Architecture
+## Arquitetura
 
 ```
-WhatsApp Business App (same phone number — continues working on device)
+WhatsApp Business App no celular (coexistência ativa — continua funcionando)
            +
-Meta WhatsApp Cloud API
+      360dialog BSP
+    waba-v2.360dialog.io
            |
            v
      Nginx reverse proxy
@@ -18,42 +19,47 @@ Meta WhatsApp Cloud API
            |
       ┌────┴────┐
       v         v
-  Supabase   Calendly links
- (database)  (scheduling)
+  Supabase   Links Calendly
+ (database)  (agendamento)
 ```
 
-**Coexistence mode:** the clinic phone keeps receiving messages normally on the device. The Cloud API webhook delivers a copy to this backend for automation.
+**Modo coexistência:** o celular da clínica continua recebendo mensagens normalmente.
+O 360dialog entrega uma cópia ao backend via webhook para automação.
 
-## Requirements
+**Provedor de mensageria:** exclusivamente **360dialog** via `waba-v2.360dialog.io`.
+NÃO usar Meta Cloud API direta nem Evolution API.
+
+## Requisitos
 
 - Node.js >= 18
-- A [Supabase](https://supabase.com) project with the schema applied (`db/schema.sql`)
-- A WhatsApp Business Account registered on Meta Cloud API
+- Projeto [Supabase](https://supabase.com) com schema aplicado (`db/schema.sql`)
+- Conta 360dialog com API key ativa (`wabamanagement.360dialog.io`)
 
-## Environment setup
+## Configuração de ambiente
 
-Copy the example file and fill in the values:
+Copie o arquivo de exemplo e preencha os valores:
 
 ```bash
 cp .env.example .env
+# edite o .env com os valores reais
 ```
 
-| Variable | Required | Description |
+| Variável | Obrigatória | Descrição |
 |---|---|---|
-| `PORT` | optional | HTTP port — default `3000` |
-| `WHATSAPP_VERIFY_TOKEN` | **yes** | Token you define; must match Meta webhook config |
-| `WHATSAPP_ACCESS_TOKEN` | **yes** | Meta Cloud API permanent access token |
-| `WHATSAPP_PHONE_NUMBER_ID` | **yes** | Meta phone number ID |
-| `WHATSAPP_BUSINESS_ACCOUNT_ID` | **yes** | Meta Business Account ID |
-| `SUPABASE_URL` | **yes** | Supabase project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | **yes** | Supabase `service_role` secret key |
+| `PORT` | opcional | Porta HTTP — padrão `3000` |
+| `WHATSAPP_API_KEY_360D` | **sim** | API key do 360dialog (gerada em wabamanagement.360dialog.io) |
+| `WHATSAPP_CHANNEL_NUMBER` | **sim** | Número da clínica E.164 sem `+` (ex.: `5511994295900`) |
+| `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | **sim** | Token definido por você; deve coincidir com o configurado no 360dialog |
+| `SUPABASE_URL` | **sim** | URL do projeto Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | **sim** | Chave `service_role` do Supabase |
 | `LINK_PARTICULAR_ONLINE` | Etapa 2+ | Calendly — particular online |
 | `LINK_PARTICULAR_PRESENCIAL` | Etapa 2+ | Calendly — particular presencial |
 | `LINK_ALICE_ONLINE` | Etapa 2+ | Calendly — Alice online |
 | `LINK_ALICE_PRESENCIAL` | Etapa 2+ | Calendly — Alice presencial |
 
-> Use the `service_role` key (not `anon`) — the backend bypasses Row Level Security.
-> The server refuses to start if `SUPABASE_URL` or `SUPABASE_SERVICE_ROLE_KEY` are missing.
+> Use a chave `service_role` (não `anon`) — o backend contorna o Row Level Security.
+> O servidor recusa iniciar se `SUPABASE_URL` ou `SUPABASE_SERVICE_ROLE_KEY` estiverem ausentes.
+> O log de startup exibe diagnóstico seguro da `WHATSAPP_API_KEY_360D` (comprimento + últimos 4 chars).
 
 ## Database
 
@@ -80,7 +86,7 @@ npm run dev        # development (auto-reload with Node --watch)
 
 ```bash
 # Pull latest code
-cd /opt/whatsapp-clinic-bot
+cd /home/user/whatsapp-clinic-bot
 git pull origin main
 npm ci --omit=dev
 
@@ -116,11 +122,11 @@ pm2 restart whatsapp-clinic-bot    # full restart
 src/
   server.js                # Entry point (Fastify)
   routes/
-    webhook.js             # GET + POST /webhook — Meta Cloud API
+    webhook.js             # GET + POST /webhook — 360dialog
     health.js              # GET /health, GET /health/db
   services/
     db.js                  # upsertContact, upsertConversation, logMessage
-    whatsapp.js            # sendTextMessage via Meta Cloud API
+    whatsapp.js            # sendTextMessage via 360dialog (waba-v2.360dialog.io)
     triage.js              # Keyword-based triage (placeholder — Etapa 2)
   utils/
     parseMessage.js        # Normalizes Meta webhook payload

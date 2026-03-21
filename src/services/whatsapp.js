@@ -8,19 +8,21 @@
 const DIALOG360_BASE_URL = 'https://waba-v2.360dialog.io/messages';
 
 function getApiKey() {
-  const key = process.env.D360_API_KEY;
-  if (!key || key === 'NOT_USED_YET') {
-    throw new Error('360dialog credentials not configured (D360_API_KEY)');
+  const key = process.env.WHATSAPP_API_KEY_360D;
+  if (!key || key.trim() === '') {
+    throw new Error(
+      'Credencial 360dialog ausente: defina WHATSAPP_API_KEY_360D no .env ou no ecosystem.config.js'
+    );
   }
-  return key;
+  return key.trim();
 }
 
 async function post360(body) {
   const response = await fetch(DIALOG360_BASE_URL, {
     method: 'POST',
     headers: {
-      'D360-API-KEY':  getApiKey(),
-      'Content-Type':  'application/json',
+      'D360-API-KEY': getApiKey(),
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
   });
@@ -28,7 +30,17 @@ async function post360(body) {
   const json = await response.json();
 
   if (!response.ok) {
-    console.error('[360dialog] API error', response.status, JSON.stringify(json));
+    if (response.status === 401) {
+      const key = process.env.WHATSAPP_API_KEY_360D || '';
+      console.error(
+        '[360dialog] 401 Invalid API token —',
+        `len=${key.length}`,
+        `tail=****${key.slice(-4)}`,
+        '— verifique WHATSAPP_API_KEY_360D no .env ou gere nova key em wabamanagement.360dialog.io'
+      );
+    } else {
+      console.error('[360dialog] API error', response.status, JSON.stringify(json));
+    }
     throw new Error(`360dialog API error ${response.status}: ${JSON.stringify(json)}`);
   }
 

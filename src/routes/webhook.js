@@ -91,13 +91,13 @@ async function webhookRoutes(fastify) {
     const token     = request.query['hub.verify_token'];
     const challenge = request.query['hub.challenge'];
 
-    const verifyToken = process.env.WEBHOOK_VERIFY_TOKEN || process.env.WHATSAPP_VERIFY_TOKEN;
+    const verifyToken = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN;
     if (mode === 'subscribe' && token === verifyToken) {
       fastify.log.info('Webhook verified by 360dialog');
       return reply.code(200).send(challenge);
     }
 
-    fastify.log.warn({ mode, token }, 'Webhook verification failed — check WEBHOOK_VERIFY_TOKEN');
+    fastify.log.warn({ mode, token }, 'Webhook verification failed — check WHATSAPP_WEBHOOK_VERIFY_TOKEN');
     return reply.code(403).send('Forbidden');
   });
 
