@@ -63,3 +63,78 @@ db/
 docs/
   resumo-executivo.md    # Functional specification (source of truth)
 ```
+
+## 🔄 Estado Atual do Projeto (V1.1)
+
+A infraestrutura do sistema está concluída e validada:
+
+- Webhook funcional (WhatsApp → backend)
+- Persistência no Supabase funcionando
+- Fluxo básico de triagem operacional
+- Envio de links de agendamento via Calendly
+
+O foco atual não é mais infraestrutura.
+
+---
+
+## ⚠️ Limitação Identificada no MVP
+
+Durante testes reais, foi observado que:
+
+- o bot interfere em conversas entre paciente e atendimento humano
+- mensagens fora do fluxo reativam o menu indevidamente
+- fallback excessivo gera ruído
+
+---
+
+## ✅ Ajuste Estratégico — V1.1
+
+A V1.1 introduz controle rigoroso de contexto da conversa.
+
+### Princípios
+
+- handoff humano tem prioridade total
+- bot só responde quando tem contexto válido
+- fallback é limitado
+- retomada só ocorre por comando explícito
+
+---
+
+## 🧠 Regras principais
+
+- `waiting_human` → bot em silêncio total
+- `MENU` → reinicia fluxo
+- fallback → máximo 1 tentativa
+- botão antigo → ignorado se inválido
+- pós-link → bot não insiste
+
+---
+
+## 🎯 Objetivo da V1.1
+
+Transformar o bot de:
+
+> sistema que responde tudo
+
+Para:
+
+> sistema que responde apenas quando deve
+
+---
+
+## 🔜 Próximos passos
+
+Após estabilização da V1.1:
+
+- refinamento de intents simples (preço, exames, etc)
+- melhoria de UX de mensagens
+- integração com eventos de agendamento (Calendly webhook)
+- métricas de conversão e abandono
+
+---
+
+## 📌 Diretriz do projeto
+
+> Em contexto clínico, excesso de automação mal controlada é pior que pouca automação.
+
+---
