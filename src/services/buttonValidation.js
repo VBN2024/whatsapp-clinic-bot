@@ -1,19 +1,52 @@
-// Import constants
-const { STATES, BUTTON_IDS, BUTTON_SETS } = require('../constants');
+'use strict';
+
+const { STATES, BUTTON_IDS, BUTTON_SETS } = require('../config/constants');
 
 /**
- * Validates if a button is valid for a given state.
- * @param {string} buttonId - The ID of the button to validate.
- * @param {string} state - The current state to validate against.
- * @returns {boolean} - Returns true if the button is valid for the state, false otherwise.
+ * Verifica se o botão recebido é válido para o estado atual e para o último conjunto de botões enviado.
+ *
+ * @param {string|null} buttonId
+ * @param {string} state
+ * @param {string|null} lastValidButtonSet
+ * @returns {boolean}
  */
-function isValidButtonForState(buttonId, state) {
-    if (!BUTTON_IDS.includes(buttonId) || !STATES.includes(state)) {
-        return false; // Invalid button ID or state
-    }
-    
-    const validButtonSets = BUTTON_SETS[state];
-    return validButtonSets ? validButtonSets.includes(buttonId) : false;
+function isValidButtonForState(buttonId, state, lastValidButtonSet) {
+  if (!buttonId) return false;
+
+  if (
+    state === STATES.MENU_ROOT &&
+    lastValidButtonSet === BUTTON_SETS.MAIN_MENU
+  ) {
+    return [
+      BUTTON_IDS.BTN_PARTICULAR,
+      BUTTON_IDS.BTN_ALICE,
+      BUTTON_IDS.BTN_OUTROS,
+    ].includes(buttonId);
+  }
+
+  if (
+    state === STATES.CHOOSING_MODALITY_PARTICULAR &&
+    lastValidButtonSet === BUTTON_SETS.PARTICULAR_MODALITY
+  ) {
+    return [
+      BUTTON_IDS.BTN_PARTICULAR_ONLINE,
+      BUTTON_IDS.BTN_PARTICULAR_PRESENCIAL,
+    ].includes(buttonId);
+  }
+
+  if (
+    state === STATES.CHOOSING_MODALITY_ALICE &&
+    lastValidButtonSet === BUTTON_SETS.ALICE_MODALITY
+  ) {
+    return [
+      BUTTON_IDS.BTN_ALICE_ONLINE,
+      BUTTON_IDS.BTN_ALICE_PRESENCIAL,
+    ].includes(buttonId);
+  }
+
+  return false;
 }
 
-module.exports = { isValidButtonForState };
+module.exports = {
+  isValidButtonForState,
+};
