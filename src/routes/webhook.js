@@ -1,66 +1,111 @@
 'use strict';
 
-const { parseInboundMessage } = require('../utils/parseMessage');
-const { upsertContact, logMessage } = require('../services/db');
+const db = require('../services/db');
+const { parseInboundMessage } = require('../services/inboundParser');
+const { processInbound } = require('../services/stateMachine');
 
 /**
- * @param {import('fastify').FastifyInstance} fastify
+ * GET /webhook
+ * Verificação do webhook
  */
-async function webhookRoutes(fastify) {
-  /**
-   * GET /webhook
-   * Meta Cloud API verification handshake.
-   */
-  fastify.get('/webhook', (request, reply) => {
-    const mode      = request.query['hub.mode'];
-    const token     = request.query['hub.verify_token'];
-    const challenge = request.query['hub.challenge'];
+async function verifyWebhook(req, reply) {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
 
-    if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN) {
-      fastify.log.info('Webhook verified by Meta');
-      return reply.code(200).send(challenge);
-    }
+  if (
+    mode === 'subscribe' &&
+    token === process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN
+  ) {
+    return reply.code(200).send(challenge);
+  }
 
-    fastify.log.warn({ mode, token }, 'Webhook verification failed');
-    return reply.code(403).send('Forbidden');
-  });
-
-  /**
-   * POST /webhook
-   * Receives inbound events from Meta Cloud API.
-   * Always returns 200 OK so Meta does not retry.
-   */
-  fastify.post('/webhook', async (request, reply) => {
-    // Always acknowledge immediately
-    reply.code(200).send({ status: 'ok' });
-
-    const parsed = parseInboundMessage(request.body);
-
-    if (!parsed) {
-      fastify.log.info('Webhook event contains no message; skipping');
-      return;
-    }
-
-    const { externalMessageId, phone, name, type, payload } = parsed;
-
-    fastify.log.info(
-      { externalMessageId, phone, type },
-      'Inbound message received'
-    );
-
-    try {
-      const contact = await upsertContact(phone, name);
-      await logMessage(externalMessageId, contact.id, type, payload);
-
-      fastify.log.info(
-        { externalMessageId, contactId: contact.id },
-        'Message logged successfully'
-      );
-    } catch (err) {
-      // Log error but do NOT propagate — reply was already sent
-      fastify.log.error({ err, externalMessageId }, 'Error processing inbound message');
-    }
-  });
+  return reply.code(403).send('Forbidden');
 }
 
-module.exports = webhookRoutes;
+/**
+ * Extrai a primeira mensagem inbound válida do payload da Meta
+ * @param {object} body
+ * @returns {object|null}
+ */
+function extractInboundMessage(body) {
+  const entry = body?.entry?.[0];
+  const change = entry?.changes?.[0];
+  const value = change?.value;
+
+  if (!value?.messages?.length) {
+    return null;
+  }
+
+  const message = value.messages[0];
+  const contact = value.contacts?.[0];
+
+  return {
+    message,
+    contact,
+  };
+}
+
+/**
+ * POST /webhook
+ * Recebe mensagens WhatsApp
+ */
+async function receiveWebhook(req, reply) {
+  try {
+    const inbound = extractInboundMessage(req.body);
+
+    // Status, delivery receipts ou payload sem mensagem
+    if (!inbound) {
+      return reply.code(200).send({ ok: true });
+    }
+
+    const { message, contact } = inbound;
+    const messageId = message.id;
+    const phone = message.from;
+    const profileName = contact?.profile?.name || null;
+
+    // 1. Contato
+    const savedContact = await db.upsertContact(phone, profileName);
+
+    // 2. Log inbound bruto
+    const parsedMessage = parseInboundMessage(message);
+
+    await db.logMessage(
+      messageId,
+      savedContact.id,
+      parsedMessage.type,
+      {
+        raw_message: message,
+        raw_contact: contact,
+        parsed: parsedMessage,
+      }
+    );
+
+    // 3. Conversa ativa
+    const conversation = await db.getOrCreateActiveConversation(savedContact.id);
+
+    // 4. Marca última mensagem do usuário
+    await db.touchUserMessage(conversation.id);
+
+    // 5. Recarrega conversa após touch para usar versão mais atual
+    const freshConversation = await db.getActiveConversation(savedContact.id);
+
+    // 6. Processa state machine
+    await processInbound({
+      to: phone,
+      contact: savedContact,
+      conversation: freshConversation,
+      parsedMessage,
+    });
+
+    return reply.code(200).send({ ok: true });
+  } catch (error) {
+    console.error('Webhook processing error:', error);
+    return reply.code(200).send({ ok: false });
+  }
+}
+
+module.exports = async function routes(fastify) {
+  fastify.get('/webhook', verifyWebhook);
+  fastify.post('/webhook', receiveWebhook);
+};
